@@ -17,23 +17,25 @@ TMP_DIR = ".bundle"
 FileUtils.rm_rf(TMP_DIR) if File.exists?(TMP_DIR)
 FileUtils.mkdir TMP_DIR
 
-r = Octokit.search_code("Gemfile.lock in:path user:#{ARGV[0]}", :per_page => 100)
+r = Octokit.search_code("Gemfile.lock in:path user:#{ARGV[0]} NOT migrations", :per_page => 100)
 
 data_hash = {}
-data_hash["repositories"] = {}
+data_hash["repositories"] = []
 
 r.items.each do |i|
   f = Octokit.content(i.repository.full_name, path: i.path)
   d = Base64.decode64(f.content)
   gemfile = Bundler::LockfileParser.new(d)
 
-  data_hash["repositories"]["#{i.repository.name}"] = {
+  tmp_hash = {
+    :name => "#{i.repository.name}",
     :source => gemfile.sources,
     :specs => gemfile.specs,
     :dependencies => gemfile.dependencies,
     :platforms => gemfile.platforms,
     :bundler_version => gemfile.bundler_version
   }
+  data_hash["repositories"] << tmp_hash
 
   puts "Parsing " + i.repository.name + "...\nDONE."
 
