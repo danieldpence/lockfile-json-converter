@@ -4,8 +4,8 @@ require "base64"
 require "bundler"
 require "json"
 
-# must set your Github credentials as env vars
 abort("Please set ENV[\"GITHUB_USERNAME\"] and/or ENV[\"GITHUB_PASSWORD\"] and try again") unless ENV["GITHUB_USERNAME"] && ENV["GITHUB_USERNAME"]
+abort("Oops, looks like you forgot to specify a Github organization name. Please try again.") unless ARGV.size >= 1
 
 Octokit.configure do |c|
   c.login = ENV["GITHUB_USERNAME"]
@@ -17,8 +17,7 @@ TMP_DIR = ".bundle"
 FileUtils.rm_rf(TMP_DIR) if File.exists?(TMP_DIR)
 FileUtils.mkdir TMP_DIR
 
-# Get the Gemfile.lock files
-r = Octokit.search_code("Gemfile.lock in:path user:lampo", :per_page => 100)
+r = Octokit.search_code("Gemfile.lock in:path user:#{ARGV[0]}", :per_page => 100)
 
 data_hash = {}
 data_hash["repositories"] = {}
@@ -38,13 +37,9 @@ r.items.each do |i|
 
   puts "Parsing " + i.repository.name + "...\nDONE."
 
-  # convert the data hash to json and write to file
   File.open("data.json", "w") do |f|
     f.write(data_hash.to_json)
   end
 end
 
 puts "#{data_hash["repositories"].size}" + " Gemfile.lock files converted to JSON"
-
-
-# filename:package.json in:path user:lampo NOT node_modules NOT vendor NOT bower_components NOT src
