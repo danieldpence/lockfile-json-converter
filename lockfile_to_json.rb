@@ -19,8 +19,8 @@ FileUtils.mkdir TMP_DIR
 
 r = Octokit.search_code("Gemfile.lock in:path user:#{ARGV[0]} NOT migrations", :per_page => 100)
 
-data_hash = {}
-data_hash["repositories"] = []
+repositories = []
+dependencies = {}
 
 r.items.each do |i|
   f = Octokit.content(i.repository.full_name, path: i.path)
@@ -35,14 +35,20 @@ r.items.each do |i|
     :platforms => gemfile.platforms,
     :bundler_version => gemfile.bundler_version
   }
-  data_hash["repositories"] << tmp_hash
+  repositories << tmp_hash
+
+  tmp_hash[:dependencies].each do |d|
+    gemname = d.to_s.split(" ").first
+    dependencies[gemname] ||= []
+    dependencies[gemname] << tmp_hash[:name]
+  end
 
   puts "Parsing " + i.repository.name + "...\nDONE."
 end
 
 File.open("data.json", "w") do |f|
   puts "Writing data.json..."
+  data_hash = { "repositories" => repositories, "gems" => dependencies.map { |k,v| { name: k, used_in: v }} }
   f.write(data_hash.to_json)
+  puts "Finished."
 end
-
-puts "#{data_hash["repositories"].size}" + " Gemfile.lock files converted to JSON"
