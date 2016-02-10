@@ -38,10 +38,11 @@ r.items.each do |i|
   data_hash["repositories"] << tmp_hash
 
   puts "Parsing " + i.repository.name + "...\nDONE."
+end
 
-  File.open("data.json", "w") do |f|
-    f.write(data_hash.to_json)
-  end
+File.open("data.json", "w") do |f|
+  puts "Writing data.json..."
+  f.write(data_hash.to_json)
 end
 
 puts "#{data_hash["repositories"].size}" + " Gemfile.lock files converted to JSON"
