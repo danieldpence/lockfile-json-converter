@@ -13,14 +13,12 @@ Octokit.configure do |c|
 end
 
 TMP_DIR = ".bundle"
-
-FileUtils.rm_rf(TMP_DIR) if File.exists?(TMP_DIR)
 FileUtils.mkdir TMP_DIR
 
 r = Octokit.search_code("Gemfile.lock in:path user:#{ARGV[0]} NOT migrations", :per_page => 100)
 
 repositories = []
-dependencies = {}
+specs = {}
 
 r.items.each do |i|
   f = Octokit.content(i.repository.full_name, path: i.path)
@@ -29,7 +27,7 @@ r.items.each do |i|
 
   tmp_hash = {
     :name => "#{i.repository.name}",
-    :source => gemfile.sources,
+    :sources => gemfile.sources,
     :specs => gemfile.specs,
     :dependencies => gemfile.dependencies,
     :platforms => gemfile.platforms,
@@ -37,18 +35,25 @@ r.items.each do |i|
   }
   repositories << tmp_hash
 
-  tmp_hash[:dependencies].each do |d|
+  tmp_hash[:specs].each do |d|
     gemname = d.to_s.split(" ").first
-    dependencies[gemname] ||= []
-    dependencies[gemname] << tmp_hash[:name]
+    version = d.to_s.split(/[()]/).last
+    specs[gemname] ||= { :versions => [], :usage => [] }
+    specs[gemname][:versions] << version unless specs[gemname][:versions].include? version
+    specs[gemname][:usage] << tmp_hash[:name]
   end
 
   puts "Parsing " + i.repository.name + "...\nDONE."
 end
+repositories.sort_by! { |h| h[:name] }
 
 File.open("data.json", "w") do |f|
   puts "Writing data.json..."
-  data_hash = { "repositories" => repositories, "gems" => dependencies.map { |k,v| { name: k, used_in: v }} }
+  data_hash = { "repositories" => repositories,
+                "gems" => specs.map { |k,v| { name: k, versions: v[:versions].sort, usage: v[:usage].sort }} }
   f.write(data_hash.to_json)
-  puts "Finished."
 end
+
+puts "Cleaning up..."
+FileUtils.rm_rf(TMP_DIR) if File.exists?(TMP_DIR)
+puts "Finished."
